@@ -7,11 +7,6 @@ import java.util.List;
 public class PublicationSummaries {
     private PublicationSummary[] publications;
 
-    @JsonCreator
-    public PublicationSummaries(PublicationSummary[] publications) {
-        this.publications = publications;
-    }
-
     public PublicationSummary[] getPublications() {
         return publications;
     }

@@ -19,6 +19,6 @@ public class PublicationsByDateDeserializerTest {
         IOUtils.copy(getClass().getResourceAsStream("/publications-by-date-20171226.json"), content);
 
         PublicationsByDate instance = new ObjectMapper().readValue(content.toByteArray(), PublicationsByDate.class);
-
+        System.out.println(instance);
     }
 }

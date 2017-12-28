@@ -1,5 +1,6 @@
 package com.jstorni.bo.boscrapper.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jstorni.bo.boscrapper.filestorage.FileStorageService;
 import com.jstorni.bo.boscrapper.inputmodel.*;
 import com.jstorni.bo.boscrapper.model.Category;
@@ -28,7 +29,10 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 /**
  * Scan official bulleting site https://www.boletinoficial.gob.ar/ for publications and publication entries
@@ -96,6 +100,7 @@ public class OfficialBulletinScannerService {
         publicationsByYearParams.add("anio", String.valueOf(year));
         publicationsByYearParams.add("seccion", String.valueOf(section));
 
+
         return boClient
             .post()
             .uri(boEndpointPublicationsByYear + "/?x-year=" + year)
@@ -132,9 +137,15 @@ public class OfficialBulletinScannerService {
                     .retrieve()
                     .bodyToMono(PublicationsByDate.class);
             })
-            .flatMap(publicationsByDate -> Flux.fromArray(publicationsByDate.getPublications()))
-            .take(1)
-            .flatMap(publicationSummaries -> Flux.fromArray(publicationSummaries.getPublications()))
+            .flatMap(publicationsByDate -> Flux.fromIterable(
+                publicationsByDate.getPublications().stream()
+                    .filter(Objects::nonNull)
+                    .filter(o -> List.class.isAssignableFrom(o.getClass()))
+                    .collect(Collectors.toList()))
+            )
+            .flatMap(o -> Flux.fromIterable((List<PublicationSummary>)deserializeFromMap((List)o)))
+            .doOnNext(summary -> logger.debug("Found publication in date {} - id {} - category {} - sector {} ",
+                summary.getPublicationDate(), summary.getIdentifier(), summary.getCategoryName(), summary.getSectorName()))
             .filterWhen(publicationSummary ->
                 // skip if publication entry was already processed
                 publicationEntryRepository.findOneByIdentifierEquals(Integer.valueOf(
@@ -142,7 +153,7 @@ public class OfficialBulletinScannerService {
             )
             .flatMap(summary -> {
                 MultiValueMap<String, String> publicationDetailsParams = new LinkedMultiValueMap<>();
-                publicationDetailsParams.add("fechaPublication", boDateFmt.format(null));
+                publicationDetailsParams.add("fechaPublication", summary.getPublicationDate());
                 publicationDetailsParams.add("numeroTramite", summary.getIdentifier());
                 publicationDetailsParams.add("origenDetalle", "0");
                 publicationDetailsParams.add("idSesion", "");
@@ -154,9 +165,9 @@ public class OfficialBulletinScannerService {
                     .syncBody(publicationDetailsParams)
                     .retrieve()
                     .bodyToMono(PublicationDetailsByPublication.class)
-                    .flatMapMany(details -> Flux.fromIterable(details.getDetails()))
-                    .doOnNext(details -> details.setSummary(summary));
+                    .doOnNext(details -> details.getDetails().setSummary(summary));
             })
+            .map(PublicationDetailsByPublication::getDetails)
             .doOnNext(publicationDetails -> fileStorageService.write(publicationDetails.getIdentifier(),
                 new ByteArrayInputStream(publicationDetails.getContent().getBytes())))
             .flatMap(publicationDetails -> {
@@ -174,9 +185,17 @@ public class OfficialBulletinScannerService {
                     .then(sectorRepository.findOneByNameEquals(summary.getSectorName()))
                     .switchIfEmpty(sectorRepository.save(new Sector(summary.getSectorName())))
                     .doOnNext(sector -> entry.setSector(sector))
-                    .then(publicationEntryRepository.save(entry));
+                    .flatMap(sector ->
+                        publicationRepository.findOneByAppearsOnEquals(buildDateFromString(summary.getPublicationDate()))
+                            .filter(Objects::nonNull)
+                            .flatMap(publication -> {
+                                entry.setPublication(publication);
+                                return publicationEntryRepository.save(entry);
+                            })
+                    );
             })
-            .doOnNext(publicationEntry -> logger.info("Processed entry {}", publicationEntry.getIdentifier()))
+            .doOnNext(entry -> logger.info("Processed publication entry in date {} - id {} - category {} - sector {} ",
+                entry.getPublication().getAppearsOn(), entry.getIdentifier(), entry.getCategory().getName(), entry.getSector().getName()))
             .doOnError(throwable -> logger.error("Error while scanning entries", throwable));
     }
 
@@ -189,5 +208,31 @@ public class OfficialBulletinScannerService {
         }
 
         return date;
+    }
+
+    /**
+     * Cannot deserialize using object mapping as returned data is a polyphormic list.<br>
+     * See publications-by-date-20171226.json file for a sample response.
+     *
+     * @param data the raw data, a List of Map instance with key, values of the publication summary
+     * @return a <code>PublicationSummary</code> instance or null if the input data is not a Map
+     */
+    private List<PublicationSummary> deserializeFromMap(List<Object> data) {
+        return data.stream()
+            .filter(o -> Map.class.isAssignableFrom(o.getClass()))
+            .map(o -> {
+                @SuppressWarnings("unchecked")
+                Map<String, String> map = (Map)o;
+
+                PublicationSummary summary = new PublicationSummary();
+                summary.setCategoryName(map.get("rubro"));
+                summary.setSectorName(map.get("organismo"));
+                summary.setIdentifier(map.get("idTamite")); // yes.... "tamite"
+                summary.setPublicationDate(map.get("fechaPublicacion"));
+                summary.setPublicationSummary(map.get("sintesis"));
+
+                return summary;
+            })
+            .collect(Collectors.toList());
     }
 }

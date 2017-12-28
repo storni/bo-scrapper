@@ -21,6 +21,10 @@ public class PublicationEntry extends BaseEntity {
     @DBRef
     private Sector sector;
 
+    @NotNull
+    @DBRef
+    private Publication publication;
+
     @Indexed(unique = true)
     @NotNull
     private int identifier;
@@ -92,5 +96,13 @@ public class PublicationEntry extends BaseEntity {
 
     public void setPdfIdentifier(String pdfIdentifier) {
         this.pdfIdentifier = pdfIdentifier;
+    }
+
+    public Publication getPublication() {
+        return publication;
+    }
+
+    public void setPublication(Publication publication) {
+        this.publication = publication;
     }
 }

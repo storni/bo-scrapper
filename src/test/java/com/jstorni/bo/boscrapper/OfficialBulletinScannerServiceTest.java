@@ -21,6 +21,7 @@ import org.junit.runner.RunWith;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.springframework.util.Assert;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Hooks;
 import reactor.core.publisher.Mono;
 
 import java.io.ByteArrayOutputStream;
@@ -59,6 +60,7 @@ public class OfficialBulletinScannerServiceTest {
 
     @Test
     public void testScan() throws Exception {
+        //Hooks.onOperatorDebug();
 
         List<String> identifiers = Arrays.asList("176621", "176622");
 
@@ -116,7 +118,27 @@ public class OfficialBulletinScannerServiceTest {
             boEndpointEntryDetails);
 
         Flux<PublicationEntry> entries = scannerService.scan(2017, 1);
-        Assert.notNull(entries.blockFirst());
+        entries.blockLast(); // wait for the last entry
+
+        identifiers.forEach(identifier ->
+            verify(storageService).write(argThat(o -> o != null && o.equals(identifier)), argThat(o -> true)));
+
+        verify(categoryRepository, times(2)).findOneByNameEquals(categoryName);
+        verify(categoryRepository).save(argThat(o -> o.getName().equals(categoryName)));
+
+        verify(sectorRepository).findOneByNameEquals(sectorJustDdhh);
+        verify(sectorRepository).save(argThat(o -> o != null && o.getName().equals(sectorJustDdhh)));
+
+        verify(sectorRepository).findOneByNameEquals(sectorHac);
+        verify(sectorRepository).save(argThat(o -> o != null && o.getName().equals(sectorHac)));
+
+        verify(publicationRepository).findOneByAppearsOnEquals(publicationDate);
+        verify(publicationRepository).save(argThat(o -> o != null && o.getAppearsOn().equals(publicationDate)));
+
+        identifiers.forEach(identifier -> verify(publicationEntryRepository).findOneByIdentifierEquals(Integer.valueOf(identifier)));
+        identifiers.stream().map(Integer::parseInt)
+            .forEach(identifier -> verify(publicationEntryRepository).save(argThat(o -> o != null && o.getIdentifier() == identifier.intValue())));
+        verifyNoMoreInteractions();
     }
 
     private PublicationEntry buildPublicationEntry(Integer identifier) {
