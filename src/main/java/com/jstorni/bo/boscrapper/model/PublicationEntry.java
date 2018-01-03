@@ -105,4 +105,18 @@ public class PublicationEntry extends BaseEntity {
     public void setPublication(Publication publication) {
         this.publication = publication;
     }
+
+    @Override
+    public String toString() {
+        return "PublicationEntry{" +
+                "category=" + category +
+                ", sector=" + sector +
+                ", publication=" + publication +
+                ", identifier=" + identifier +
+                ", hasAttachment=" + hasAttachment +
+                ", title='" + title + '\'' +
+                ", summary='" + summary + '\'' +
+                ", pdfIdentifier='" + pdfIdentifier + '\'' +
+                '}';
+    }
 }

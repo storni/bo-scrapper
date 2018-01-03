@@ -120,6 +120,7 @@ public class OfficialBulletinScannerService {
                     .switchIfEmpty(publicationRepository.save(new Publication(buildDateFromString(publicationSearchKey.getDate()))))
                     .block()
             )
+            .doOnNext(publication -> logger.debug("Going to process publication of {}", publication.getAppearsOn()))
             .flatMap(publication -> {
                 String dateAsString = boDateFmt.format(publication.getAppearsOn());
                 MultiValueMap<String, String> publicationEntriesParams = new LinkedMultiValueMap<>();
@@ -170,6 +171,7 @@ public class OfficialBulletinScannerService {
             .map(PublicationDetailsByPublication::getDetails)
             .doOnNext(publicationDetails -> fileStorageService.write(publicationDetails.getIdentifier(),
                 new ByteArrayInputStream(publicationDetails.getContent().getBytes())))
+            .doOnNext(publicationDetails -> logger.debug("Found publication details id {}", publicationDetails.getIdentifier()))
             .flatMap(publicationDetails -> {
                 PublicationSummary summary = publicationDetails.getSummary();
                 final PublicationEntry entry = new PublicationEntry();
@@ -185,15 +187,24 @@ public class OfficialBulletinScannerService {
                     .then(sectorRepository.findOneByNameEquals(summary.getSectorName()))
                     .switchIfEmpty(sectorRepository.save(new Sector(summary.getSectorName())))
                     .doOnNext(sector -> entry.setSector(sector))
-                    .flatMap(sector ->
-                        publicationRepository.findOneByAppearsOnEquals(buildDateFromString(summary.getPublicationDate()))
-                            .filter(Objects::nonNull)
-                            .flatMap(publication -> {
-                                entry.setPublication(publication);
-                                return publicationEntryRepository.save(entry);
-                            })
-                    );
+                    .then(publicationRepository.findOneByAppearsOnEquals(buildDateFromString(summary.getPublicationDate())))
+                    .doOnSuccess(publication -> {
+                        if (publication == null) {
+                            logger.warn("Skipping publication entry in date {} - id {} - category {} - sector {} ."
+                                    + "Reason: publication not found for date", summary.getPublicationDate(),
+                                    entry.getIdentifier(), entry.getCategory().getName(), entry.getSector().getName());
+                        } else {
+                            logger.debug("Going to attach publication entry {} to date {}", entry.getIdentifier(), publication.getAppearsOn());
+                        }
+                    })
+                    .filter(Objects::nonNull)
+                    .flatMap(publication -> {
+                        entry.setPublication(publication);
+                        return publicationEntryRepository.save(entry);
+                    });
+
             })
+            .filter(Objects::nonNull)
             .doOnNext(entry -> logger.info("Processed publication entry in date {} - id {} - category {} - sector {} ",
                 entry.getPublication().getAppearsOn(), entry.getIdentifier(), entry.getCategory().getName(), entry.getSector().getName()))
             .doOnError(throwable -> logger.error("Error while scanning entries", throwable));

@@ -10,7 +10,7 @@
         <appender-ref ref="STDOUT" />
     </root>
 
-    <logger name="com.jstorni" level="DEBUG">
+    <logger name="com.jstorni" level="DEBUG" additivity="false">
         <appender-ref ref="STDOUT" />
     </logger>
 

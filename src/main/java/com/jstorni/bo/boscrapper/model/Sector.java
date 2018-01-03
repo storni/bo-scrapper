@@ -42,4 +42,12 @@ public class Sector extends BaseEntity{
     public void setParentSector(Sector parentSector) {
         this.parentSector = parentSector;
     }
+
+    @Override
+    public String toString() {
+        return "Sector{" +
+                "name='" + name + '\'' +
+                ", parentSector=" + parentSector +
+                '}';
+    }
 }

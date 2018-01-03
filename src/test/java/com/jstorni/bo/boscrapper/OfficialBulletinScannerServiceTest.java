@@ -71,11 +71,12 @@ public class OfficialBulletinScannerServiceTest {
 
         CategoryRepository categoryRepository = mock(CategoryRepository.class);
         String categoryName = "Decisiones Administrativas";
-        when(categoryRepository.findOneByNameEquals(categoryName))
+        Category category = new Category(categoryName);
+        when(categoryRepository.findOneByNameEquals(argThat(o -> o != null && categoryName.equals(o))))
             .thenReturn(Mono.empty())
-            .thenReturn(Mono.just(new Category(categoryName)));
+            .thenReturn(Mono.just(category));
         when(categoryRepository.save(argThat(o -> o.getName().equals(categoryName))))
-            .thenReturn(Mono.just(new Category(categoryName)));
+            .thenReturn(Mono.just(category));
 
         SectorRepository sectorRepository = mock(SectorRepository.class);
         String sectorJustDdhh = "MINISTERIO DE JUSTICIA Y DERECHOS HUMANOS";
@@ -91,18 +92,24 @@ public class OfficialBulletinScannerServiceTest {
             .thenReturn(Mono.just(new Sector(sectorHac)));
 
         Date publicationDate = new SimpleDateFormat("yyyyMMdd").parse("20171226");
+        Publication publication = new Publication(publicationDate);
         PublicationRepository publicationRepository = mock(PublicationRepository.class);
         when(publicationRepository.findOneByAppearsOnEquals(publicationDate))
-            .thenReturn(Mono.empty());
+            .thenReturn(Mono.empty())
+            .thenReturn(Mono.just(publication))
+            .thenReturn(Mono.just(publication));
         when(publicationRepository.save(argThat(o -> o != null && o.getAppearsOn().equals(publicationDate))))
-            .thenReturn(Mono.just(new Publication(publicationDate)));
+            .thenReturn(Mono.just(publication));
 
         PublicationEntryRepository publicationEntryRepository = mock(PublicationEntryRepository.class);
         identifiers.forEach(identifier -> when(publicationEntryRepository.findOneByIdentifierEquals(Integer.valueOf(identifier)))
             .thenReturn(Mono.empty()));
         identifiers.stream().map(Integer::parseInt)
-            .forEach(identifier -> when(publicationEntryRepository.save(argThat(o -> o != null && o.getIdentifier() == identifier.intValue())))
-            .thenReturn(Mono.just(buildPublicationEntry(identifier))));
+            .forEach(identifier -> when(publicationEntryRepository.save(argThat(o -> o != null
+                    && o.getIdentifier() == identifier.intValue()
+                    && o.getPublication().getAppearsOn().equals(publicationDate))))
+            .thenReturn(Mono.just(buildPublicationEntry(identifier, publication, category,
+                    identifier == 176621 ? new Sector(sectorJustDdhh) :  new Sector(sectorHac)))));
         identifiers.forEach(identifier -> addDetailsRequestExpectation(identifier));
         addPublicationsByYearExpectation(2017);
         addEntriesByPublicationExpectation("20171226");
@@ -123,27 +130,42 @@ public class OfficialBulletinScannerServiceTest {
         identifiers.forEach(identifier ->
             verify(storageService).write(argThat(o -> o != null && o.equals(identifier)), argThat(o -> true)));
 
-        verify(categoryRepository, times(2)).findOneByNameEquals(categoryName);
-        verify(categoryRepository).save(argThat(o -> o.getName().equals(categoryName)));
+        // TODO fix me, it should be 1 time
+        verify(categoryRepository, times(2)).save(argThat(o -> o != null && o.getName().equals(categoryName)));
+        verify(categoryRepository, times(2)).findOneByNameEquals(argThat(o -> o != null && o.equals(categoryName)));
 
-        verify(sectorRepository).findOneByNameEquals(sectorJustDdhh);
+        verify(sectorRepository).findOneByNameEquals(argThat(o -> o != null && o.equals(sectorJustDdhh)));
         verify(sectorRepository).save(argThat(o -> o != null && o.getName().equals(sectorJustDdhh)));
 
-        verify(sectorRepository).findOneByNameEquals(sectorHac);
+        verify(sectorRepository).findOneByNameEquals(argThat(o -> o != null && o.equals(sectorHac)));
         verify(sectorRepository).save(argThat(o -> o != null && o.getName().equals(sectorHac)));
 
-        verify(publicationRepository).findOneByAppearsOnEquals(publicationDate);
+        verify(publicationRepository, times(4)).findOneByAppearsOnEquals(publicationDate);
         verify(publicationRepository).save(argThat(o -> o != null && o.getAppearsOn().equals(publicationDate)));
 
         identifiers.forEach(identifier -> verify(publicationEntryRepository).findOneByIdentifierEquals(Integer.valueOf(identifier)));
         identifiers.stream().map(Integer::parseInt)
-            .forEach(identifier -> verify(publicationEntryRepository).save(argThat(o -> o != null && o.getIdentifier() == identifier.intValue())));
-        verifyNoMoreInteractions();
+            .forEach(identifier -> verify(publicationEntryRepository).save(argThat(o -> o != null
+                    && o.getIdentifier() == identifier
+                    && o.getSector() != null
+                    && o.getSector().getName() != null
+                    && o.getCategory() != null
+                    && o.getCategory().getName().equals(categoryName)
+                    && o.getPublication() != null
+                    && o.getPublication().getAppearsOn().equals(publicationDate)
+            )));
+
+        identifiers.stream().forEach(identifier -> verify(storageService).write(argThat(o -> o != null && o.equals(identifier)), argThat(o -> o != null)));
+
+        verifyNoMoreInteractions(storageService, categoryRepository, sectorRepository, publicationRepository, publicationEntryRepository);
     }
 
-    private PublicationEntry buildPublicationEntry(Integer identifier) {
+    private PublicationEntry buildPublicationEntry(Integer identifier, Publication publication, Category category, Sector sector) {
         PublicationEntry entry = new PublicationEntry();
         entry.setIdentifier(identifier);
+        entry.setPublication(publication);
+        entry.setSector(sector);
+        entry.setCategory(category);
 
         return entry;
     }

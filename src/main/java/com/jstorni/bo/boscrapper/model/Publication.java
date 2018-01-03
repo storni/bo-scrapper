@@ -54,4 +54,13 @@ public class Publication extends BaseEntity {
     public void setImportCompleted(boolean importCompleted) {
         this.importCompleted = importCompleted;
     }
+
+    @Override
+    public String toString() {
+        return "Publication{" +
+                "appearsOn=" + appearsOn +
+                ", importedOn=" + importedOn +
+                ", importCompleted=" + importCompleted +
+                '}';
+    }
 }
