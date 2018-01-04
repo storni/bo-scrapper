@@ -17,7 +17,7 @@ public class Sector extends BaseEntity{
 
     @Indexed(unique = true)
     @NotNull
-    @Size(max = 128)
+    @Size(max = 512)
     private String name;
 
     @DBRef

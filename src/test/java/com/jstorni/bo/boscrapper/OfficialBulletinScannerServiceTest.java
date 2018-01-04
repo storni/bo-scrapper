@@ -122,7 +122,10 @@ public class OfficialBulletinScannerServiceTest {
             boEndpointBase,
             boEndpointPublicationsByYear,
             boEndpointEntriesByPublication,
-            boEndpointEntryDetails);
+            boEndpointEntryDetails,
+            null,
+            false,
+            true);
 
         Flux<PublicationEntry> entries = scannerService.scan(2017, 1);
         entries.blockLast(); // wait for the last entry

@@ -16,7 +16,7 @@ public class Category extends BaseEntity {
 
     @Indexed(unique = true)
     @NotNull
-    @Size(max = 64)
+    @Size(max = 512)
     private String name;
 
     public Category() {
