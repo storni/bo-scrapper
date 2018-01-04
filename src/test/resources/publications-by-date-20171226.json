@@ -1,0 +1,49 @@
+{
+  "dataList": [
+    [
+      {
+        "rubro": "Decisiones Administrativas",
+        "tipoNorma": "",
+        "nuevo": "True",
+        "organismo": "MINISTERIO DE HACIENDA",
+        "numeroNorma": "Decisión Administrativa 1103",
+        "anioNorma": "2017",
+        "idTamite": "176621",
+        "anioTramite": null,
+        "tieneAnexos": false,
+        "sintesis": "Designación.",
+        "archivoPDF": null,
+        "fechaPublicacion": "20171226",
+        "fechaPublicacionDesde": null,
+        "fechaPublicacionHasta": null,
+        "titulo": null,
+        "idNorma": null
+      },
+      {
+        "rubro": "Decisiones Administrativas",
+        "tipoNorma": "",
+        "nuevo": "True",
+        "organismo": "MINISTERIO DE JUSTICIA Y DERECHOS HUMANOS",
+        "numeroNorma": "Decisión Administrativa 1106",
+        "anioNorma": "2017",
+        "idTamite": "176622",
+        "anioTramite": null,
+        "tieneAnexos": true,
+        "sintesis": "Designación.",
+        "archivoPDF": null,
+        "fechaPublicacion": "20171226",
+        "fechaPublicacionDesde": null,
+        "fechaPublicacionHasta": null,
+        "titulo": null,
+        "idNorma": null
+      }
+    ],
+    "2017122601N.pdf",
+    null,
+    "20171226",
+    "2179"
+  ],
+  "id": "1mBm4XcXBZJ30xOiXinQgi1bLS1JVi1bLbW5x6AXLipHQX4TF2CplVU=",
+  "codigoError": 0,
+  "mensajeError": ""
+}
