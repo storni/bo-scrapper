@@ -42,6 +42,8 @@ public class PublicationEntry extends BaseEntity {
     @Size(max = 16)
     private String pdfIdentifier;
 
+    private boolean entitiesExtracted;
+
     public Category getCategory() {
         return category;
     }
@@ -106,6 +108,14 @@ public class PublicationEntry extends BaseEntity {
         this.publication = publication;
     }
 
+    public boolean isEntitiesExtracted() {
+        return entitiesExtracted;
+    }
+
+    public void setEntitiesExtracted(boolean entitiesExtracted) {
+        this.entitiesExtracted = entitiesExtracted;
+    }
+
     @Override
     public String toString() {
         return "PublicationEntry{" +
@@ -117,6 +127,7 @@ public class PublicationEntry extends BaseEntity {
                 ", title='" + title + '\'' +
                 ", summary='" + summary + '\'' +
                 ", pdfIdentifier='" + pdfIdentifier + '\'' +
+                ", entitiesExtracted=" + entitiesExtracted +
                 '}';
     }
 }

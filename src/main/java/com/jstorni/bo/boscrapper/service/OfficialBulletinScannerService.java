@@ -195,8 +195,8 @@ public class OfficialBulletinScannerService {
                     entry.setSummary(summary.getPublicationSummary());
                     entry.setTitle(publicationDetails.getTitle());
 
-                    String categoryName = clean(summary.getCategoryName());
-                    String sectorName = clean(summary.getSectorName());
+                    String categoryName = summary.getCategoryName();
+                    String sectorName = summary.getSectorName();
 
                     return findOrCreateCategory(categoryName)
                             .doOnNext(category -> entry.setCategory(category))
@@ -249,13 +249,6 @@ public class OfficialBulletinScannerService {
                         return Mono.empty();
                     }
                 });
-    }
-
-
-    private String clean(String source) {
-        String string = StringUtils.trimWhitespace(source);
-        string = StringUtils.capitalize(source);
-        return StringUtils.deleteAny(source, "\r\n\t");
     }
 
     private Date buildDateFromString(String source) {

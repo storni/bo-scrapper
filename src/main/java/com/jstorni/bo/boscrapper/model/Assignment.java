@@ -79,4 +79,5 @@ public class Assignment extends BaseEntity {
     public void setPublicationEntry(PublicationEntry publicationEntry) {
         this.publicationEntry = publicationEntry;
     }
+
 }
