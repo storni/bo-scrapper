@@ -36,12 +36,16 @@ public class EntityExtractorService {
         Flux<Object> extractedEntitiesFlux = hotSource.publish().autoConnect();
 
         entryRepository.findByEntitiesExtractedFalse()
-                .subscribe(publicationEntry ->
+                .doOnNext(publicationEntry ->
                         extractors.stream()
                                 .map(entityExtractor -> entityExtractor.extract(publicationEntry))
                                 .filter(Objects::nonNull)
                                 .forEach(hotSource::onNext)
-                );
+                )
+                .doOnError(ex -> logger.error("Error while extracting entities from publication", ex))
+                .doOnNext(publicationEntry -> publicationEntry.setEntitiesExtracted(true))
+                .doOnNext(entryRepository::save);
+
 
         hotSource.onComplete();
 

@@ -42,6 +42,8 @@ public class EntityExtractorServiceTest {
             sectors.add(new Sector("sec" + n));
         }
 
+        // TODO add a new entry that simulates a delay
+        // TODO add a new entry that simulates an error (and test that publication is not marked as success)
         EntityExtractor extractor1 = mock(EntityExtractor.class);
         when(extractor1.extract(argThat(entry -> entry != null && entry.getId().equals(entry1.getId())))).thenReturn(Flux.fromIterable(categories));
         when(extractor1.extract(argThat(entry -> entry != null && entry.getId().equals(entry2.getId())))).thenReturn(Flux.empty());
