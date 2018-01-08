@@ -16,7 +16,9 @@ import reactor.core.publisher.Flux;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.mockito.Mockito.*;
 
@@ -42,22 +44,39 @@ public class EntityExtractorServiceTest {
             sectors.add(new Sector("sec" + n));
         }
 
-        // TODO add a new entry that simulates a delay
-        // TODO add a new entry that simulates an error (and test that publication is not marked as success)
         EntityExtractor extractor1 = mock(EntityExtractor.class);
         when(extractor1.extract(argThat(entry -> entry != null && entry.getId().equals(entry1.getId())))).thenReturn(Flux.fromIterable(categories));
         when(extractor1.extract(argThat(entry -> entry != null && entry.getId().equals(entry2.getId())))).thenReturn(Flux.empty());
 
         EntityExtractor extractor2 = mock(EntityExtractor.class);
         when(extractor2.extract(argThat(entry -> entry != null && entry.getId().equals(entry2.getId())))).thenReturn(Flux.fromIterable(sectors));
-        when(extractor1.extract(argThat(entry -> entry != null && entry.getId().equals(entry1.getId())))).thenReturn(Flux.empty());
+        when(extractor2.extract(argThat(entry -> entry != null && entry.getId().equals(entry1.getId())))).thenReturn(Flux.empty());
 
         EntityExtractorService service = new EntityExtractorService(entryRepository, Arrays.asList(extractor1, extractor2));
 
         Flux<Object> entities = service.extract();
-        entities.blockLast();
-
-        entities.count().doOnNext(count -> Assert.assertEquals(10, count.longValue()));
+        AtomicInteger count = new AtomicInteger();
+        entities
+            .doOnNext(o -> count.incrementAndGet())
+            .doOnComplete(() -> {
+                Assert.assertEquals(10, count.intValue());
+                verify(extractor1).extract(argThat(o -> o != null && o.getId().equals(entry1.getId())));
+                verify(extractor1).extract(argThat(o -> o != null && o.getId().equals(entry2.getId())));
+                verify(extractor2).extract(argThat(o -> o != null && o.getId().equals(entry1.getId())));
+                verify(extractor2).extract(argThat(o -> o != null && o.getId().equals(entry2.getId())));
+                verify(entryRepository).findByEntitiesExtractedFalse();
+                verify(entryRepository, times(2)).save(argThat(o -> o != null && o.isEntitiesExtracted()));
+                verifyNoMoreInteractions(extractor1, extractor2, entryRepository);
+            })
+            .subscribe(o -> {
+                if (o.getClass().equals(Sector.class)) {
+                    Assert.assertTrue(((Sector)o).getName().startsWith("sec"));
+                } else if (o.getClass().equals(Category.class)) {
+                    Assert.assertTrue(((Category)o).getName().startsWith("cat"));
+                } else {
+                    Assert.fail("Unexpected entity class: " + o.getClass().getName());
+                }
+            });
 
     }
 }
